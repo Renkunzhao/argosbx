@@ -1235,7 +1235,7 @@ fi
 if grep xhttp-reality "$HOME/agsbx/xr.json" >/dev/null 2>&1; then
 echo "💣【 Vless-xhttp-reality-enc 】支持ENC加密，节点信息如下："
 port_xh=$(cat "$HOME/agsbx/port_xh")
-vl_xh_link="vless://$uuid@$server_ip:$port_xh?encryption=$enkey&flow=xtls-rprx-vision&security=reality&sni=$ym_vl_re&fp=chrome&pbk=$public_key_x&sid=$short_id_x&type=xhttp&path=$uuid-xh&mode=auto#${sxname}vl-xhttp-reality-enc-$hostname"
+vl_xh_link="vless://$uuid@$server_ip:$port_xh?encryption=$enkey&flow=xtls-rprx-vision&security=reality&sni=$ym_vl_re&fp=chrome&pbk=$public_key_x&sid=$short_id_x&type=xhttp&path=$uuid-xh&mode=stream-one#${sxname}vl-xhttp-reality-enc-$hostname"
 echo "$vl_xh_link" >> "$HOME/agsbx/jhsub.txt"
 echo "$vl_xh_link"
 echo
@@ -1243,10 +1243,30 @@ fi
 if grep vless-xhttp "$HOME/agsbx/xr.json" >/dev/null 2>&1; then
 echo "💣【 Vless-xhttp-enc 】支持ENC加密，节点信息如下："
 port_vx=$(cat "$HOME/agsbx/port_vx")
-vl_vx_link="vless://$uuid@$server_ip:$port_vx?encryption=$enkey&flow=xtls-rprx-vision&type=xhttp&path=$uuid-vx&mode=auto#${sxname}vl-xhttp-enc-$hostname"
+vl_vx_link="vless://$uuid@$server_ip:$port_vx?encryption=$enkey&flow=xtls-rprx-vision&type=xhttp&path=$uuid-vx&mode=stream-one#${sxname}vl-xhttp-enc-$hostname"
 echo "$vl_vx_link" >> "$HOME/agsbx/jhsub.txt"
 echo "$vl_vx_link"
 echo
+clvxpt(){
+local host="${server_ip#[}"
+cat <<EOF
+- name: ${sxname}vl-xhttp-enc-$hostname
+  type: vless
+  server: "${host%]}"
+  port: $port_vx
+  uuid: $uuid
+  encryption: "$enkey"
+  flow: xtls-rprx-vision
+  network: xhttp
+  xhttp-opts:
+    path: "/$uuid-vx"
+    host: "$server_ip:$port_vx"
+    mode: stream-one
+EOF
+}
+clvxpt1(){
+echo "- ${sxname}vl-xhttp-enc-$hostname"
+}
 if [ -f "$HOME/agsbx/cdnym" ]; then
 echo "💣【 Vless-xhttp-ecn-cdn 】支持ENC加密，节点信息如下："
 echo "注：默认地址 yg数字.ygkkk.dpdns.org 可自行更换优选IP域名，如是回源端口需手动修改443或者80系端口"
@@ -1263,6 +1283,26 @@ vl_vw_link="vless://$uuid@$server_ip:$port_vw?encryption=$enkey&flow=xtls-rprx-v
 echo "$vl_vw_link" >> "$HOME/agsbx/jhsub.txt"
 echo "$vl_vw_link"
 echo
+clvwpt(){
+local host="${server_ip#[}"
+cat <<EOF
+- name: ${sxname}vl-ws-enc-$hostname
+  type: vless
+  server: "${host%]}"
+  port: $port_vw
+  uuid: $uuid
+  encryption: "$enkey"
+  flow: xtls-rprx-vision
+  network: ws
+  ws-opts:
+    path: "/$uuid-vw"
+    headers:
+      Host: "$server_ip:$port_vw"
+EOF
+}
+clvwpt1(){
+echo "- ${sxname}vl-ws-enc-$hostname"
+}
 if [ -f "$HOME/agsbx/cdnym" ]; then
 echo "💣【 Vless-ws-enc-cdn 】支持ENC加密，节点信息如下："
 echo "注：默认地址 yg数字.ygkkk.dpdns.org 可自行更换优选IP域名，如是回源端口需手动修改443或者80系端口"
@@ -1755,10 +1795,12 @@ echo "\"${sxname}vmess-ws-tls-argo-$hostname-443\","
 echo "\"${sxname}vmess-ws-argo-$hostname-80\","
 }
 clvmargopt(){
+local argo_server="$cdnip1"
+[[ "$argodomain" == *.trycloudflare.com ]] && argo_server="$argodomain"
 cat <<EOF
 - name: ${sxname}vmess-ws-tls-argo-$hostname-443                         
   type: vmess
-  server: "$cdnip1"                       
+  server: "$argo_server"
   port: 443                                     
   uuid: $uuid       
   alterId: 0
@@ -1771,6 +1813,9 @@ cat <<EOF
     path: "$uuid-vm"                             
     headers:
       Host: $argodomain
+EOF
+if [[ "$argodomain" != *.trycloudflare.com ]]; then
+cat <<EOF
 - name: ${sxname}vmess-ws-argo-$hostname-80                         
   type: vmess
   server: "$cdnip2"                        
@@ -1787,10 +1832,13 @@ cat <<EOF
     headers:
       Host: $argodomain
 EOF
+fi
 }
 clvmargopt1(){
 echo "- ${sxname}vmess-ws-tls-argo-$hostname-443"
+if [[ "$argodomain" != *.trycloudflare.com ]]; then
 echo "- ${sxname}vmess-ws-argo-$hostname-80"
+fi
 }
 elif [ "$vlvm" = "Vless" ]; then
 vwatls_link1="vless://$uuid@$cdnip1:443?encryption=$enkey&flow=xtls-rprx-vision&type=ws&host=$argodomain&path=$uuid-vw&security=tls&sni=$argodomain&fp=chrome&insecure=0&allowInsecure=0#${sxname}vless-ws-tls-argo-enc-vision-$hostname"
@@ -1825,9 +1873,9 @@ out=$($f)
 fi
 }
 sbxy="$(get_func sbvlpt; get_func sbsspt; get_func sbanpt; get_func sbarpt; get_func sbvmpt; get_func sbhypt; get_func sbtupt; get_func sbvmargopt)"
-clxy="$(get_func clvlpt; get_func clsspt; get_func clanpt; get_func clvmpt; get_func clhypt; get_func cltupt; get_func clvmargopt)"
+clxy="$(get_func clvlpt; get_func clvxpt; get_func clvwpt; get_func clsspt; get_func clanpt; get_func clvmpt; get_func clhypt; get_func cltupt; get_func clvmargopt)"
 sbgz="$(get_func sbvlpt1; get_func sbsspt1; get_func sbanpt1; get_func sbarpt1; get_func sbvmpt1; get_func sbhypt1; get_func sbtupt1; get_func sbvmargopt1)"
-clgz="$({ get_func clvlpt1; get_func clsspt1; get_func clanpt1; get_func clvmpt1; get_func clhypt1; get_func cltupt1; get_func clvmargopt1; } | sed '2,$s/^/    /')"
+clgz="$({ get_func clvlpt1; get_func clvxpt1; get_func clvwpt1; get_func clsspt1; get_func clanpt1; get_func clvmpt1; get_func clhypt1; get_func cltupt1; get_func clvmargopt1; } | sed '2,$s/^/    /')"
 sbgz=$(printf "%s\n" "$sbgz" | sed '$ s/,$//')
 cat > $HOME/agsbx/sbox.json <<EOF
 {
