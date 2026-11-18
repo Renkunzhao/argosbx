@@ -853,7 +853,7 @@ EOF
 systemctl daemon-reload >/dev/null 2>&1
 systemctl enable xr >/dev/null 2>&1
 systemctl start xr >/dev/null 2>&1
-elif command -v rc-service >/dev/null 2>&1 && [ "$EUID" -eq 0 ]; then
+elif [ -f /run/openrc/softlevel ] && command -v rc-service >/dev/null 2>&1 && [ "$EUID" -eq 0 ]; then
 cat > /etc/init.d/xray <<EOF
 #!/sbin/openrc-run
 description="xr service"
@@ -944,7 +944,7 @@ EOF
 systemctl daemon-reload >/dev/null 2>&1
 systemctl enable sb >/dev/null 2>&1
 systemctl start sb >/dev/null 2>&1
-elif command -v rc-service >/dev/null 2>&1 && [ "$EUID" -eq 0 ]; then
+elif [ -f /run/openrc/softlevel ] && command -v rc-service >/dev/null 2>&1 && [ "$EUID" -eq 0 ]; then
 cat > /etc/init.d/sing-box <<EOF
 #!/sbin/openrc-run
 description="sb service"
@@ -1018,7 +1018,7 @@ EOF
 systemctl daemon-reload >/dev/null 2>&1
 systemctl enable argo >/dev/null 2>&1
 systemctl start argo >/dev/null 2>&1
-elif command -v rc-service >/dev/null 2>&1 && [ "$EUID" -eq 0 ]; then
+elif [ -f /run/openrc/softlevel ] && command -v rc-service >/dev/null 2>&1 && [ "$EUID" -eq 0 ]; then
 cat > /etc/init.d/argo <<EOF
 #!/sbin/openrc-run
 description="argo service"
@@ -1047,7 +1047,7 @@ sleep 15
 if [ -n "${ARGO_DOMAIN}" ] && [ -n "${ARGO_AUTH}" ]; then
 argodomain=$(cat "$HOME/agsbx/sbargoym.log" 2>/dev/null)
 else
-argodomain=$(grep -a trycloudflare.com "$HOME/agsbx/argo.log" 2>/dev/null | awk 'NR==2{print}' | awk -F// '{print $2}' | awk '{print $1}')
+argodomain=$(grep -aoE 'https://[a-z0-9-]+[.]trycloudflare[.]com' "$HOME/agsbx/argo.log" 2>/dev/null | head -n 1 | cut -c9-)
 fi
 if [ -n "${argodomain}" ]; then
 echo "Argo$argoname隧道申请成功"
@@ -1208,6 +1208,11 @@ ipchange
 rm -rf "$HOME/agsbx/jhsub.txt"
 uuid=$(cat "$HOME/agsbx/uuid")
 server_ip=$(cat "$HOME/agsbx/server_ip.log")
+if [ -n "$advertise_ipv6" ]; then
+server_ip="[$advertise_ipv6]"
+fi
+yaml_server="${server_ip#[}"
+yaml_server="${yaml_server%]}"
 sxname=$(cat "$HOME/agsbx/name" 2>/dev/null)
 xvvmcdnym=$(cat "$HOME/agsbx/cdnym" 2>/dev/null)
 echo "*********************************************************"
@@ -1351,7 +1356,7 @@ clvlpt(){
 cat <<EOF
 - name: ${sxname}vless-reality-vision-$hostname               
   type: vless
-  server: $server_ip                          
+  server: "$yaml_server"
   port: $port_vl_re                                
   uuid: $uuid   
   network: tcp
@@ -1399,7 +1404,7 @@ clsspt(){
 cat <<EOF
 - name: "${sxname}Shadowsocks-2022-$hostname"
   type: ss
-  server: $server_ip
+  server: "$yaml_server"
   port: $port_ss
   cipher: 2022-blake3-aes-128-gcm
   password: "$sskey"
@@ -1457,7 +1462,7 @@ clvmpt(){
 cat <<EOF
 - name: ${sxname}vmess-ws-$hostname                         
   type: vmess
-  server: $server_ip                        
+  server: "$yaml_server"
   port: $port_vm_ws                                     
   uuid: $uuid       
   alterId: 0
@@ -1517,7 +1522,7 @@ clanpt(){
 cat <<EOF
 - name: ${sxname}anytls-$hostname
   type: anytls
-  server: $server_ip
+  server: "$yaml_server"
   port: $port_an
   password: $uuid
   client-fingerprint: chrome
@@ -1620,7 +1625,7 @@ clhypt(){
 cat <<EOF
 - name: ${sxname}hysteria2-$hostname                            
   type: hysteria2                                      
-  server: $server_ip                              
+  server: "$yaml_server"
   port: $port_hy2
   ports: $cmhy2pt
   password: $uuid                          
@@ -1673,7 +1678,7 @@ echo "\"${sxname}tuic5-$hostname\","
 cltupt(){
 cat <<EOF
 - name: ${sxname}tuic5-$hostname                            
-  server: $server_ip                      
+  server: "$yaml_server"
   port: $port_tu                                    
   type: tuic
   uuid: $uuid       
@@ -1702,7 +1707,7 @@ echo "客户端密码：$uuid"
 echo
 fi
 argodomain=$(cat "$HOME/agsbx/sbargoym.log" 2>/dev/null)
-[ -z "$argodomain" ] && argodomain=$(grep -a trycloudflare.com "$HOME/agsbx/argo.log" 2>/dev/null | awk 'NR==2{print}' | awk -F// '{print $2}' | awk '{print $1}')
+[ -z "$argodomain" ] && argodomain=$(grep -aoE 'https://[a-z0-9-]+[.]trycloudflare[.]com' "$HOME/agsbx/argo.log" 2>/dev/null | head -n 1 | cut -c9-)
 if [ -n "$argodomain" ]; then
 vlvm=$(cat $HOME/agsbx/vlvm 2>/dev/null)
 if [ "$vlvm" = "Vmess" ]; then
