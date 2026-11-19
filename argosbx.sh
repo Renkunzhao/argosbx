@@ -41,7 +41,7 @@ export warp=${warp:-''}
 export name=${name:-''}
 export oap=${oap:-''}
 v46url="https://icanhazip.com"
-agsbxurl="https://raw.githubusercontent.com/yonggekkk/argosbx/main/argosbx.sh"
+agsbxurl="${agsbxurl:-https://raw.githubusercontent.com/Renkunzhao/argosbx/altare-argo/argosbx.sh}"
 showmode(){
 echo "Argosbx脚本一键SSH命令生器在线网址：https://yonggekkk.github.io/argosbx/"
 echo "主脚本：bash <(curl -Ls https://raw.githubusercontent.com/yonggekkk/argosbx/main/argosbx.sh) 或 bash <(wget -qO- https://raw.githubusercontent.com/yonggekkk/argosbx/main/argosbx.sh)"
@@ -78,8 +78,11 @@ if command -v apk >/dev/null 2>&1; then
 apk update >/dev/null 2>&1 && apk add --no-cache bash busybox-extras gcompat libc6-compat iptables openssl >/dev/null 2>&1
 elif command -v apt >/dev/null 2>&1; then
 export DEBIAN_FRONTEND=noninteractive
+apt update >/dev/null 2>&1 && apt install -y curl ca-certificates procps busybox coreutils util-linux cron openssl >/dev/null 2>&1
+if [ -n "$oap" ] || [ -n "$hyjpt" ]; then
 printf 'iptables-persistent iptables-persistent/autosave_v4 boolean true\niptables-persistent iptables-persistent/autosave_v6 boolean true\n' | debconf-set-selections
-apt update >/dev/null 2>&1 && apt install -y busybox coreutils util-linux iptables iptables-persistent cron openssl >/dev/null 2>&1
+apt install -y iptables iptables-persistent >/dev/null 2>&1
+fi
 fi
 touch sbx_update
 fi
@@ -1043,11 +1046,18 @@ argoname='临时'
 nohup "$HOME/agsbx/cloudflared" tunnel --url http://localhost:$(cat $HOME/agsbx/argoport.log) --edge-ip-version auto --no-autoupdate --protocol http2 > $HOME/agsbx/argo.log 2>&1 &
 fi
 echo "申请Argo$argoname隧道中……请稍等"
-sleep 15
 if [ -n "${ARGO_DOMAIN}" ] && [ -n "${ARGO_AUTH}" ]; then
+sleep 15
 argodomain=$(cat "$HOME/agsbx/sbargoym.log" 2>/dev/null)
 else
+argodomain=""
+i=0
+while [ "$i" -lt 30 ]; do
 argodomain=$(grep -aoE 'https://[a-z0-9-]+[.]trycloudflare[.]com' "$HOME/agsbx/argo.log" 2>/dev/null | head -n 1 | cut -c9-)
+[ -n "$argodomain" ] && break
+sleep 1
+i=$((i + 1))
+done
 fi
 if [ -n "${argodomain}" ]; then
 echo "Argo$argoname隧道申请成功"
@@ -1064,7 +1074,7 @@ SCRIPT_PATH="$HOME/bin/agsbx"
 mkdir -p "$HOME/bin"
 (command -v curl >/dev/null 2>&1 && curl -sL "$agsbxurl" -o "$SCRIPT_PATH") || (command -v wget >/dev/null 2>&1 && wget -qO "$SCRIPT_PATH" "$agsbxurl")
 chmod +x "$SCRIPT_PATH"
-if ! pidof systemd >/dev/null 2>&1 && ! command -v rc-service >/dev/null 2>&1; then
+if ! pidof systemd >/dev/null 2>&1 && ! { [ -f /run/openrc/softlevel ] && command -v rc-service >/dev/null 2>&1; }; then
 echo "if ! find /proc/*/exe -type l 2>/dev/null | grep -E '/proc/[0-9]+/exe' | xargs -r readlink 2>/dev/null | grep -Eq 'agsbx/(s|x)' && ! pgrep -f 'agsbx/(s|x)' >/dev/null 2>&1; then echo '检测到系统可能中断过，或者变量格式错误？建议在SSH对话框输入 reboot 重启下服务器。现在自动执行Argosbx脚本的节点恢复操作，请稍等……'; sleep 6; export cfip=\"${cfip}\" hyjpt=\"${hyjpt}\" cdnym=\"${cdnym}\" name=\"${name}\" ippz=\"${ippz}\" argo=\"${argo}\" uuid=\"${uuid}\" $wap=\"${warp}\" $xhp=\"${port_xh}\" $vxp=\"${port_vx}\" $ssp=\"${port_ss}\" $sop=\"${port_so}\" $anp=\"${port_an}\" $arp=\"${port_ar}\" $vlp=\"${port_vl_re}\" $vwp=\"${port_vw}\" $vmp=\"${port_vm_ws}\" $hyp=\"${port_hy2}\" $tup=\"${port_tu}\" reym=\"${ym_vl_re}\" agn=\"${ARGO_DOMAIN}\" agk=\"${ARGO_AUTH}\"; bash "$HOME/bin/agsbx"; fi" >> ~/.bashrc
 fi
 sed -i '/export PATH="\$HOME\/bin:\$PATH"/d' ~/.bashrc
@@ -1072,7 +1082,7 @@ echo 'export PATH="$HOME/bin:$PATH"' >> "$HOME/.bashrc"
 grep -qxF 'source ~/.bashrc' ~/.bash_profile 2>/dev/null || echo 'source ~/.bashrc' >> ~/.bash_profile
 . ~/.bashrc 2>/dev/null
 crontab -l > /tmp/crontab.tmp 2>/dev/null
-if ! pidof systemd >/dev/null 2>&1 && ! command -v rc-service >/dev/null 2>&1; then
+if ! pidof systemd >/dev/null 2>&1 && ! { [ -f /run/openrc/softlevel ] && command -v rc-service >/dev/null 2>&1; }; then
 sed -i '/agsbx\/sing-box/d' /tmp/crontab.tmp
 sed -i '/agsbx\/xray/d' /tmp/crontab.tmp
 if find /proc/*/exe -type l 2>/dev/null | grep -E '/proc/[0-9]+/exe' | xargs -r readlink 2>/dev/null | grep -q 'agsbx/s' || pgrep -f 'agsbx/s' >/dev/null 2>&1 ; then
@@ -1085,7 +1095,7 @@ fi
 sed -i '/agsbx\/cloudflared/d' /tmp/crontab.tmp
 if [ -n "$argo" ] && [ -n "$vmag" ]; then
 if [ -n "${ARGO_DOMAIN}" ] && [ -n "${ARGO_AUTH}" ]; then
-if ! pidof systemd >/dev/null 2>&1 && ! command -v rc-service >/dev/null 2>&1; then
+if ! pidof systemd >/dev/null 2>&1 && ! { [ -f /run/openrc/softlevel ] && command -v rc-service >/dev/null 2>&1; }; then
 echo '@reboot sleep 10 && /bin/sh -c "nohup $HOME/agsbx/cloudflared tunnel --no-autoupdate --edge-ip-version auto --protocol http2 run --token $(cat $HOME/agsbx/sbargotoken.log 2>/dev/null) >/dev/null 2>&1 &"' >> /tmp/crontab.tmp
 fi
 else
@@ -1710,8 +1720,12 @@ argodomain=$(cat "$HOME/agsbx/sbargoym.log" 2>/dev/null)
 [ -z "$argodomain" ] && argodomain=$(grep -aoE 'https://[a-z0-9-]+[.]trycloudflare[.]com' "$HOME/agsbx/argo.log" 2>/dev/null | head -n 1 | cut -c9-)
 if [ -n "$argodomain" ]; then
 vlvm=$(cat $HOME/agsbx/vlvm 2>/dev/null)
+case "$argodomain" in
+*.trycloudflare.com) argo_server="$argodomain" ;;
+*) argo_server="$cdnip1" ;;
+esac
 if [ "$vlvm" = "Vmess" ]; then
-vmatls_link1="vmess://$(echo "{ \"v\": \"2\", \"ps\": \"${sxname}vmess-ws-tls-argo-$hostname-443\", \"add\": \"$cdnip1\", \"port\": \"443\", \"id\": \"$uuid\", \"aid\": \"0\", \"scy\": \"auto\", \"net\": \"ws\", \"type\": \"none\", \"host\": \"$argodomain\", \"path\": \"/$uuid-vm\", \"tls\": \"tls\", \"sni\": \"$argodomain\", \"alpn\": \"\", \"fp\": \"chrome\"}" | base64 -w0)"
+vmatls_link1="vmess://$(echo "{ \"v\": \"2\", \"ps\": \"${sxname}vmess-ws-tls-argo-$hostname-443\", \"add\": \"$argo_server\", \"port\": \"443\", \"id\": \"$uuid\", \"aid\": \"0\", \"scy\": \"auto\", \"net\": \"ws\", \"type\": \"none\", \"host\": \"$argodomain\", \"path\": \"/$uuid-vm\", \"tls\": \"tls\", \"sni\": \"$argodomain\", \"alpn\": \"\", \"fp\": \"chrome\"}" | base64 -w0)"
 echo "$vmatls_link1" >> "$HOME/agsbx/jhsub.txt"
 vmatls_link2="vmess://$(echo "{ \"v\": \"2\", \"ps\": \"${sxname}vmess-ws-tls-argo-$hostname-8443\", \"add\": \"yg2.ygkkk.dpdns.org\", \"port\": \"8443\", \"id\": \"$uuid\", \"aid\": \"0\", \"scy\": \"auto\", \"net\": \"ws\", \"type\": \"none\", \"host\": \"$argodomain\", \"path\": \"/$uuid-vm\", \"tls\": \"tls\", \"sni\": \"$argodomain\", \"alpn\": \"\", \"fp\": \"chrome\"}" | base64 -w0)"
 echo "$vmatls_link2" >> "$HOME/agsbx/jhsub.txt"
@@ -1740,7 +1754,7 @@ echo "$vma_link13" >> "$HOME/agsbx/jhsub.txt"
 sbvmargopt(){
 cat <<EOF
 {
-            "server": "$cdnip1",
+            "server": "$argo_server",
             "server_port": 443,
             "tag": "${sxname}vmess-ws-tls-argo-$hostname-443",
             "tls": {
@@ -1800,8 +1814,6 @@ echo "\"${sxname}vmess-ws-tls-argo-$hostname-443\","
 echo "\"${sxname}vmess-ws-argo-$hostname-80\","
 }
 clvmargopt(){
-local argo_server="$cdnip1"
-[[ "$argodomain" == *.trycloudflare.com ]] && argo_server="$argodomain"
 cat <<EOF
 - name: ${sxname}vmess-ws-tls-argo-$hostname-443                         
   type: vmess
@@ -1819,7 +1831,9 @@ cat <<EOF
     headers:
       Host: $argodomain
 EOF
-if [[ "$argodomain" != *.trycloudflare.com ]]; then
+case "$argodomain" in
+*.trycloudflare.com) ;;
+*)
 cat <<EOF
 - name: ${sxname}vmess-ws-argo-$hostname-80                         
   type: vmess
@@ -1837,13 +1851,17 @@ cat <<EOF
     headers:
       Host: $argodomain
 EOF
-fi
+;;
+esac
 }
 clvmargopt1(){
 echo "- ${sxname}vmess-ws-tls-argo-$hostname-443"
-if [[ "$argodomain" != *.trycloudflare.com ]]; then
+case "$argodomain" in
+*.trycloudflare.com) ;;
+*)
 echo "- ${sxname}vmess-ws-argo-$hostname-80"
-fi
+;;
+esac
 }
 elif [ "$vlvm" = "Vless" ]; then
 vwatls_link1="vless://$uuid@$cdnip1:443?encryption=$enkey&flow=xtls-rprx-vision&type=ws&host=$argodomain&path=$uuid-vw&security=tls&sni=$argodomain&fp=chrome&insecure=0&allowInsecure=0#${sxname}vless-ws-tls-argo-enc-vision-$hostname"
@@ -2171,7 +2189,7 @@ systemctl stop "$svc" >/dev/null 2>&1
 systemctl disable "$svc" >/dev/null 2>&1
 done
 rm -rf /etc/systemd/system/{xr.service,sb.service,argo.service}
-elif command -v rc-service >/dev/null 2>&1; then
+elif [ -f /run/openrc/softlevel ] && command -v rc-service >/dev/null 2>&1; then
 for svc in sing-box xray argo; do
 rc-service "$svc" stop >/dev/null 2>&1
 rc-update del "$svc" default >/dev/null 2>&1
@@ -2187,7 +2205,7 @@ xrestart(){
 kill -15 $(pgrep -f 'agsbx/x' 2>/dev/null) >/dev/null 2>&1
 if pidof systemd >/dev/null 2>&1; then
 systemctl restart xr >/dev/null 2>&1
-elif command -v rc-service >/dev/null 2>&1; then
+elif [ -f /run/openrc/softlevel ] && command -v rc-service >/dev/null 2>&1; then
 rc-service xray restart >/dev/null 2>&1
 else
 nohup $HOME/agsbx/xray run -c $HOME/agsbx/xr.json >/dev/null 2>&1 &
@@ -2197,7 +2215,7 @@ sbrestart(){
 kill -15 $(pgrep -f 'agsbx/s' 2>/dev/null) >/dev/null 2>&1
 if pidof systemd >/dev/null 2>&1; then
 systemctl restart sb >/dev/null 2>&1
-elif command -v rc-service >/dev/null 2>&1; then
+elif [ -f /run/openrc/softlevel ] && command -v rc-service >/dev/null 2>&1; then
 rc-service sing-box restart >/dev/null 2>&1
 else
 nohup $HOME/agsbx/sing-box run -c $HOME/agsbx/sb.json >/dev/null 2>&1 &
@@ -2248,7 +2266,7 @@ kill -15 $(pgrep -f 'agsbx/c' 2>/dev/null) >/dev/null 2>&1
 if [ -e "$HOME/agsbx/sbargotoken.log" ]; then
 if pidof systemd >/dev/null 2>&1; then
 systemctl restart argo >/dev/null 2>&1
-elif command -v rc-service >/dev/null 2>&1; then
+elif [ -f /run/openrc/softlevel ] && command -v rc-service >/dev/null 2>&1; then
 rc-service argo restart >/dev/null 2>&1
 else
 nohup $HOME/agsbx/cloudflared tunnel --no-autoupdate --edge-ip-version auto --protocol http2 run --token $(cat $HOME/agsbx/sbargotoken.log 2>/dev/null) >/dev/null 2>&1 &
